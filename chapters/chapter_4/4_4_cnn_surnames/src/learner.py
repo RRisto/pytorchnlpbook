@@ -93,6 +93,7 @@ class Learner(object):
         self.train_state[f'{train_val}_acc'].append(running_acc)
 
     def train(self, **kwargs):
+        #kwargs are meant to be trianing related arguments that might be changed for training
         self._add_update_args(**kwargs)
 
         epoch_bar, train_bar, val_bar = self._set_splits_progress_bars()
