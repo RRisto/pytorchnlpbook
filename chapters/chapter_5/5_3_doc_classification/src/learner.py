@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import torch
@@ -6,11 +7,11 @@ from torch import optim
 import torch.nn as nn
 from tqdm import tqdm_notebook as tqdm
 
-from .dataset import generate_batches, CBOWDataset
+from .dataset import generate_batches, NewsDataset
 
 from .utils import set_seed_everywhere, handle_dirs, compute_accuracy
-from .classifier import CBOWClassifier
-from .utils import make_train_state, update_train_state
+from .classifier import NewsClassifier
+from .utils import make_train_state, update_train_state, make_embedding_matrix
 from .radam import RAdam
 
 
@@ -21,8 +22,7 @@ class Learner(object):
         self.vectorizer = vectorizer
         self.classifier = classifier
 
-        self.loss_func = nn.CrossEntropyLoss()
-        # self.optimizer = optim.Adam(classifier.parameters(), lr=args.learning_rate)
+        self.loss_func = nn.CrossEntropyLoss(dataset.class_weights)
         self.optimizer = RAdam(classifier.parameters(), lr=args.learning_rate)
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer=self.optimizer,
                                                               mode='min', factor=0.5,
@@ -39,6 +39,7 @@ class Learner(object):
                          total=self.dataset.get_num_batches(self.args.batch_size),
                          position=1,
                          leave=True)
+
         self.dataset.set_split('val')
         val_bar = tqdm(desc='split=val',
                        total=self.dataset.get_num_batches(self.args.batch_size),
@@ -119,8 +120,8 @@ class Learner(object):
 
                 self.classifier.eval()
                 self.train_eval_epoch(batch_generator, epoch_index, val_bar, 'val')
-                #self.train_state = update_train_state(args=self.args, model=self.classifier,
-                 #                                     train_state=self.train_state)
+                # self.train_state = update_train_state(args=self.args, model=self.classifier,
+                #                                     train_state=self.train_state)
                 self.update_train_state()
 
                 self.scheduler.step(self.train_state['val_loss'][-1])
@@ -136,22 +137,21 @@ class Learner(object):
 
     def save_model(self):
         state = {
-            #'loss_fun': self.loss_func,
+            # 'loss_fun': self.loss_func,
             'scheduler': self.scheduler,
             'state_dict': self.classifier.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'train_state': self.train_state,
-            'args':self.args
+            'args': self.args
         }
         torch.save(state, self.train_state['model_filename'])
 
     def load_model(self, filename):
         learner = torch.load(filename)
-        self.scheduler=learner['scheduler']
+        self.scheduler = learner['scheduler']
         self.classifier.load_state_dict(learner['state_dict'])
         self.optimizer.load_state_dict(learner['optimizer'])
-        self.train_state=learner['train_state']
-
+        self.train_state = learner['train_state']
 
     def update_train_state(self):
         """Handle the training state updates.
@@ -195,9 +195,10 @@ class Learner(object):
                 self.train_state['early_stopping_step'] >= self.args.early_stopping_criteria
 
     def validate(self):
-        #self.classifier.load_state_dict(torch.load(self.train_state['model_filename']))
+        # self.classifier.load_state_dict(torch.load(self.train_state['model_filename']))
         self.load_model(self.train_state['model_filename'])
         self.classifier = self.classifier.to(self.args.device)
+        self.dataset.class_weights = self.dataset.class_weights.to(self.args.device)
 
         self.dataset.set_split('test')
         batch_generator = generate_batches(self.dataset,
@@ -225,6 +226,34 @@ class Learner(object):
 
         print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
+
+    # Preprocess the reviews todo maybe put it into dataset?
+    def preprocess_text(self, text):
+        text = ' '.join(word.lower() for word in text.split(" "))
+        text = re.sub(r"([.,!?])", r" \1 ", text)
+        text = re.sub(r"[^a-zA-Z.,!?]+", r" ", text)
+        return text
+
+    def predict_category(self, title):
+        """Predict a News category for a new title
+
+        Args:
+            title (str): a raw title string
+            classifier (NewsClassifier): an instance of the trained classifier
+            vectorizer (NewsVectorizer): the corresponding vectorizer
+            max_length (int): the max sequence length
+                Note: CNNs are sensitive to the input data tensor size.
+                      This ensures to keep it the same size as the training data
+        """
+        title = self.preprocess_text(title)
+        vectorized_title = torch.tensor(
+            self.vectorizer.vectorize(title, vector_length=self.dataset._max_seq_length + 1))
+        result = self.classifier(vectorized_title.unsqueeze(0), apply_softmax=True)
+        probability_values, indices = result.max(dim=1)
+        predicted_category = self.vectorizer.category_vocab.lookup_index(indices.item())
+
+        return {'category': predicted_category,
+                'probability': probability_values.item()}
 
     @classmethod
     def learner_from_args(cls, args):
@@ -255,25 +284,43 @@ class Learner(object):
         if args.reload_from_files:
             # training from a checkpoint
             print("Loading dataset and loading vectorizer")
-            dataset = CBOWDataset.load_dataset_and_load_vectorizer(args.cbow_csv,
+            dataset = NewsDataset.load_dataset_and_load_vectorizer(args.news_csv,
                                                                    args.vectorizer_file)
         else:
             # create dataset and vectorizer
             print("Loading dataset and creating vectorizer")
-            dataset = CBOWDataset.load_dataset_and_make_vectorizer(args.cbow_csv)
+            dataset = NewsDataset.load_dataset_and_make_vectorizer(args.news_csv)
             dataset.save_vectorizer(args.vectorizer_file)
         vectorizer = dataset.get_vectorizer()
 
-        classifier = CBOWClassifier(vocabulary_size=len(vectorizer.cbow_vocab),
-                                    embedding_size=args.embedding_size)
+        # Use GloVe or randomly initialized embeddings
+        if args.use_glove:
+            words = vectorizer.title_vocab._token_to_idx.keys()
+            embeddings = make_embedding_matrix(glove_filepath=args.glove_filepath,
+                                               words=words)
+            print("Using pre-trained embeddings")
+        else:
+            print("Not using pre-trained embeddings")
+            embeddings = None
+
+        classifier = NewsClassifier(embedding_size=args.embedding_size,
+                                    num_embeddings=len(vectorizer.title_vocab),
+                                    num_channels=args.num_channels,
+                                    hidden_dim=args.hidden_dim,
+                                    num_classes=len(vectorizer.category_vocab),
+                                    dropout_p=args.dropout_p,
+                                    pretrained_embeddings=embeddings,
+                                    padding_idx=0)
+        dataset.class_weights = dataset.class_weights.to(args.device)
 
         classifier = classifier.to(args.device)
         # dataset.class_weights = dataset.class_weights.to(args.device)
-        learner= cls(args, dataset, vectorizer, classifier)
+        learner = cls(args, dataset, vectorizer, classifier)
+        # todo check reloading part
         if args.reload_from_files:
             learner_states = torch.load(Path(args.model_state_file))
             learner.optimizer.load_state_dict(learner_states['optimizer'])
             learner.classifier.load_state_dict(learner_states['state_dict'])
-            learner.scheduler=learner_states['scheduler']
-            learner.train_state=learner_states['train_state']
+            learner.scheduler = learner_states['scheduler']
+            learner.train_state = learner_states['train_state']
         return learner
