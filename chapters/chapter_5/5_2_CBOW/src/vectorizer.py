@@ -47,8 +47,7 @@ class CBOWVectorizer(object):
 
     @classmethod
     def from_serializable(cls, contents):
-        cbow_vocab = \
-            Vocabulary.from_serializable(contents['cbow_vocab'])
+        cbow_vocab = Vocabulary.from_serializable(contents['cbow_vocab'])
         return cls(cbow_vocab=cbow_vocab)
 
     def to_serializable(self):

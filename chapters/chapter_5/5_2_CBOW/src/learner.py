@@ -1,11 +1,12 @@
 import os
+from pathlib import Path
 
 import torch
 from torch import optim
 import torch.nn as nn
-from tqdm import tqdm_notebook, tqdm
+from tqdm import tqdm_notebook as tqdm
 
-from .dataset import  generate_batches, CBOWDataset
+from .dataset import generate_batches, CBOWDataset
 
 from .utils import set_seed_everywhere, handle_dirs, compute_accuracy
 from .classifier import CBOWClassifier
@@ -93,7 +94,7 @@ class Learner(object):
         self.train_state[f'{train_val}_acc'].append(running_acc)
 
     def train(self, **kwargs):
-        #kwargs are meant to be training related arguments that might be changed for training
+        # kwargs are meant to be training related arguments that might be changed for training
         self._add_update_args(**kwargs)
 
         epoch_bar, train_bar, val_bar = self._set_splits_progress_bars()
@@ -118,12 +119,13 @@ class Learner(object):
 
                 self.classifier.eval()
                 self.train_eval_epoch(batch_generator, epoch_index, val_bar, 'val')
-                train_state = update_train_state(args=self.args, model=self.classifier,
-                                                 train_state=self.train_state)
+                #self.train_state = update_train_state(args=self.args, model=self.classifier,
+                 #                                     train_state=self.train_state)
+                self.update_train_state()
 
-                self.scheduler.step(train_state['val_loss'][-1])
+                self.scheduler.step(self.train_state['val_loss'][-1])
 
-                if train_state['stop_early']:
+                if self.train_state['stop_early']:
                     break
 
                 train_bar.n = 0
@@ -131,6 +133,99 @@ class Learner(object):
                 epoch_bar.update()
         except KeyboardInterrupt:
             print("Exiting loop")
+
+    def save_model(self):
+        state = {
+            #'loss_fun': self.loss_func,
+            'scheduler': self.scheduler,
+            'state_dict': self.classifier.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'train_state': self.train_state,
+            'args':self.args
+        }
+        torch.save(state, self.train_state['model_filename'])
+
+    def load_model(self, filename):
+        learner = torch.load(filename)
+        self.scheduler=learner['scheduler']
+        self.classifier.load_state_dict(learner['state_dict'])
+        self.optimizer.load_state_dict(learner['optimizer'])
+        self.train_state=learner['train_state']
+
+
+    def update_train_state(self):
+        """Handle the training state updates.
+
+        Components:
+         - Early Stopping: Prevent overfitting.
+         - Model Checkpoint: Model is saved if the model is better
+
+        :param args: main arguments
+        :param model: model to train
+        :param train_state: a dictionary representing the training state values
+        :returns:
+            a new train_state
+        """
+
+        # Save one model at least
+        if self.train_state['epoch_index'] == 0:
+            # torch.save(self.classifier.state_dict(), self.train_state['model_filename'])
+            self.save_model()
+            self.train_state['stop_early'] = False
+
+        # Save model if performance improved
+        elif self.train_state['epoch_index'] >= 1:
+            loss_tm1, loss_t = self.train_state['val_loss'][-2:]
+
+            # If loss worsened
+            if loss_t >= self.train_state['early_stopping_best_val']:
+                # Update step
+                self.train_state['early_stopping_step'] += 1
+            # Loss decreased
+            else:
+                # Save the best model
+                if loss_t < self.train_state['early_stopping_best_val']:
+                    torch.save(self.classifier.state_dict(), self.train_state['model_filename'])
+
+                # Reset early stopping step
+                self.train_state['early_stopping_step'] = 0
+
+            # Stop early ?
+            self.train_state['stop_early'] = \
+                self.train_state['early_stopping_step'] >= self.args.early_stopping_criteria
+
+    def validate(self):
+        #self.classifier.load_state_dict(torch.load(self.train_state['model_filename']))
+        self.load_model(self.train_state['model_filename'])
+        classifier = self.classifier.to(self.args.device)
+        loss_func = nn.CrossEntropyLoss()
+
+        self.dataset.set_split('test')
+        batch_generator = generate_batches(self.dataset,
+                                           batch_size=self.args.batch_size,
+                                           device=self.args.device)
+        running_loss = 0.
+        running_acc = 0.
+        classifier.eval()
+
+        for batch_index, batch_dict in enumerate(batch_generator):
+            # compute the output
+            y_pred = classifier(x_in=batch_dict['x_data'])
+
+            # compute the loss
+            loss = loss_func(y_pred, batch_dict['y_target'])
+            loss_t = loss.item()
+            running_loss += (loss_t - running_loss) / (batch_index + 1)
+
+            # compute the accuracy
+            acc_t = compute_accuracy(y_pred, batch_dict['y_target'])
+            running_acc += (acc_t - running_acc) / (batch_index + 1)
+
+        self.train_state['test_loss'] = running_loss
+        self.train_state['test_acc'] = running_acc
+
+        print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
+        print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
 
     @classmethod
     def learner_from_args(cls, args):
@@ -171,8 +266,15 @@ class Learner(object):
         vectorizer = dataset.get_vectorizer()
 
         classifier = CBOWClassifier(vocabulary_size=len(vectorizer.cbow_vocab),
-                            embedding_size=args.embedding_size)
+                                    embedding_size=args.embedding_size)
 
         classifier = classifier.to(args.device)
-        #dataset.class_weights = dataset.class_weights.to(args.device)
-        return cls(args, dataset, vectorizer, classifier)
+        # dataset.class_weights = dataset.class_weights.to(args.device)
+        learner= cls(args, dataset, vectorizer, classifier)
+        if args.reload_from_files:
+            learner_states = torch.load(Path(args.model_state_file))
+            learner.optimizer.load_state_dict(learner_states['optimizer'])
+            learner.classifier.load_state_dict(learner_states['state_dict'])
+            learner.scheduler=learner_states['scheduler']
+            learner.train_state=learner_states['train_state']
+        return learner
