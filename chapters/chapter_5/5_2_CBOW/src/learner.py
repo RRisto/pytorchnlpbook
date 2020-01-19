@@ -185,7 +185,7 @@ class Learner(object):
             else:
                 # Save the best model
                 if loss_t < self.train_state['early_stopping_best_val']:
-                    torch.save(self.classifier.state_dict(), self.train_state['model_filename'])
+                    self.save_model()
 
                 # Reset early stopping step
                 self.train_state['early_stopping_step'] = 0

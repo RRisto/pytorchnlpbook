@@ -1,31 +1,29 @@
 import json
 import torch
 from torch.utils.data import DataLoader, Dataset
-from .vectorizer import NewsVectorizer
+from .vectorizer import SurnameVectorizer
 import pandas as pd
 
 
-class NewsDataset(Dataset):
-    def __init__(self, news_df, vectorizer):
+class SurnameDataset(Dataset):
+    def __init__(self, surname_df, vectorizer):
         """
         Args:
-            news_df (pandas.DataFrame): the dataset
-            vectorizer (NewsVectorizer): vectorizer instatiated from dataset
+            surname_df (pandas.DataFrame): the dataset
+            vectorizer (SurnameVectorizer): vectorizer instatiated from dataset
         """
-        self.news_df = news_df
+        self.surname_df = surname_df
         self._vectorizer = vectorizer
 
-        # +1 if only using begin_seq, +2 if using both begin and end seq tokens
-        measure_len = lambda context: len(context.split(" "))
-        self._max_seq_length = max(map(measure_len, news_df.title)) + 2
+        self._max_seq_length = max(map(len, self.surname_df.surname)) + 2
 
-        self.train_df = self.news_df[self.news_df.split == 'train']
+        self.train_df = self.surname_df[self.surname_df.split == 'train']
         self.train_size = len(self.train_df)
 
-        self.val_df = self.news_df[self.news_df.split == 'val']
+        self.val_df = self.surname_df[self.surname_df.split == 'val']
         self.validation_size = len(self.val_df)
 
-        self.test_df = self.news_df[self.news_df.split == 'test']
+        self.test_df = self.surname_df[self.surname_df.split == 'test']
         self.test_size = len(self.test_df)
 
         self._lookup_dict = {'train': (self.train_df, self.train_size),
@@ -35,17 +33,17 @@ class NewsDataset(Dataset):
         self.set_split('train')
 
         # Class weights
-        class_counts = news_df.category.value_counts().to_dict()
+        class_counts = self.train_df.nationality.value_counts().to_dict()
 
         def sort_key(item):
-            return self._vectorizer.category_vocab.lookup_token(item[0])
+            return self._vectorizer.nationality_vocab.lookup_token(item[0])
 
         sorted_counts = sorted(class_counts.items(), key=sort_key)
         frequencies = [count for _, count in sorted_counts]
         self.class_weights = 1.0 / torch.tensor(frequencies, dtype=torch.float32)
 
     @classmethod
-    def load_dataset_and_make_vectorizer(cls, news_csv):
+    def load_dataset_and_make_vectorizer(cls, surname_csv):
         """Load dataset and make a new vectorizer from scratch
 
         Args:
@@ -53,12 +51,12 @@ class NewsDataset(Dataset):
         Returns:
             an instance of SurnameDataset
         """
-        news_df = pd.read_csv(news_csv)
-        train_news_df = news_df[news_df.split == 'train']
-        return cls(news_df, NewsVectorizer.from_dataframe(train_news_df))
+        surname_df = pd.read_csv(surname_csv)
+        train_surname_df = surname_df[surname_df.split == 'train']
+        return cls(surname_df, SurnameVectorizer.from_dataframe(train_surname_df))
 
     @classmethod
-    def load_dataset_and_load_vectorizer(cls, news_csv, vectorizer_filepath):
+    def load_dataset_and_load_vectorizer(cls, surname_csv, vectorizer_filepath):
         """Load dataset and the corresponding vectorizer.
         Used in the case in the vectorizer has been cached for re-use
 
@@ -68,9 +66,9 @@ class NewsDataset(Dataset):
         Returns:
             an instance of SurnameDataset
         """
-        news_df = pd.read_csv(news_csv)
+        surname_df = pd.read_csv(surname_csv)
         vectorizer = cls.load_vectorizer_only(vectorizer_filepath)
-        return cls(news_csv, vectorizer)
+        return cls(surname_df, vectorizer)
 
     @staticmethod
     def load_vectorizer_only(vectorizer_filepath):
@@ -82,7 +80,7 @@ class NewsDataset(Dataset):
             an instance of SurnameVectorizer
         """
         with open(vectorizer_filepath) as fp:
-            return NewsVectorizer.from_serializable(json.load(fp))
+            return SurnameVectorizer.from_serializable(json.load(fp))
 
     def save_vectorizer(self, vectorizer_filepath):
         """saves the vectorizer to disk using json
@@ -98,7 +96,6 @@ class NewsDataset(Dataset):
         return self._vectorizer
 
     def set_split(self, split="train"):
-        """ selects the splits in the dataset using a column in the dataframe """
         self._target_split = split
         self._target_df, self._target_size = self._lookup_dict[split]
 
@@ -111,18 +108,22 @@ class NewsDataset(Dataset):
         Args:
             index (int): the index to the data point
         Returns:
-            a dictionary holding the data point's features (x_data) and label (y_target)
+            a dictionary holding the data point's:
+                features (x_data)
+                label (y_target)
+                feature length (x_length)
         """
         row = self._target_df.iloc[index]
 
-        title_vector = \
-            self._vectorizer.vectorize(row.title, self._max_seq_length)
+        surname_vector, vec_length = \
+            self._vectorizer.vectorize(row.surname, self._max_seq_length)
 
-        category_index = \
-            self._vectorizer.category_vocab.lookup_token(row.category)
+        nationality_index = \
+            self._vectorizer.nationality_vocab.lookup_token(row.nationality)
 
-        return {'x_data': title_vector,
-                'y_target': category_index}
+        return {'x_data': surname_vector,
+                'y_target': nationality_index,
+                'x_length': vec_length}
 
     def get_num_batches(self, batch_size):
         """Given a batch size, return the number of batches in the dataset

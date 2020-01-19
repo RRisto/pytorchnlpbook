@@ -7,11 +7,11 @@ from torch import optim
 import torch.nn as nn
 from tqdm import tqdm_notebook as tqdm
 
-from .dataset import generate_batches, NewsDataset
+from .dataset import generate_batches, SurnameDataset
 
-from .utils import set_seed_everywhere, handle_dirs, compute_accuracy
-from .classifier import NewsClassifier
-from .utils import make_train_state, update_train_state, make_embedding_matrix
+from .utils import set_seed_everywhere, handle_dirs
+from .classifier import SurnameClassifier
+from .utils import make_train_state, compute_accuracy
 from .radam import RAdam
 
 
@@ -68,7 +68,7 @@ class Learner(object):
             self.optimizer.zero_grad()
 
             # step 2. compute the output
-            y_pred = self.classifier(batch_dict['x_data'])
+            y_pred = self.classifier(x_in=batch_dict['x_data'], x_lengths=batch_dict['x_length'])
 
             # step 3. compute the loss
             loss = self.loss_func(y_pred, batch_dict['y_target'])
@@ -137,7 +137,6 @@ class Learner(object):
 
     def save_model(self):
         state = {
-            # 'loss_fun': self.loss_func,
             'scheduler': self.scheduler,
             'state_dict': self.classifier.state_dict(),
             'optimizer': self.optimizer.state_dict(),
@@ -186,6 +185,7 @@ class Learner(object):
                 # Save the best model
                 if loss_t < self.train_state['early_stopping_best_val']:
                     self.save_model()
+                    self.train_state['early_stopping_best_val'] = loss_t
 
                 # Reset early stopping step
                 self.train_state['early_stopping_step'] = 0
@@ -199,6 +199,7 @@ class Learner(object):
         self.load_model(self.train_state['model_filename'])
         self.classifier = self.classifier.to(self.args.device)
         self.dataset.class_weights = self.dataset.class_weights.to(self.args.device)
+        self.loss_func = nn.CrossEntropyLoss(self.dataset.class_weights)
 
         self.dataset.set_split('test')
         batch_generator = generate_batches(self.dataset,
@@ -210,7 +211,8 @@ class Learner(object):
 
         for batch_index, batch_dict in enumerate(batch_generator):
             # compute the output
-            y_pred = self.classifier(x_in=batch_dict['x_data'])
+            y_pred = self.classifier(batch_dict['x_data'],
+                                     x_lengths=batch_dict['x_length'])
 
             # compute the loss
             loss = self.loss_func(y_pred, batch_dict['y_target'])
@@ -227,33 +229,20 @@ class Learner(object):
         print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
 
-    # Preprocess the reviews todo maybe put it into dataset?
-    def preprocess_text(self, text):
-        text = ' '.join(word.lower() for word in text.split(" "))
-        text = re.sub(r"([.,!?])", r" \1 ", text)
-        text = re.sub(r"[^a-zA-Z.,!?]+", r" ", text)
-        return text
+    def predict_category(self, surname):
+        vectorized_surname, vec_length = self.vectorizer.vectorize(surname)
+        vectorized_surname = torch.tensor(vectorized_surname).unsqueeze(dim=0)
+        vec_length = torch.tensor([vec_length], dtype=torch.int64)
 
-    def predict_category(self, title):
-        """Predict a News category for a new title
-
-        Args:
-            title (str): a raw title string
-            classifier (NewsClassifier): an instance of the trained classifier
-            vectorizer (NewsVectorizer): the corresponding vectorizer
-            max_length (int): the max sequence length
-                Note: CNNs are sensitive to the input data tensor size.
-                      This ensures to keep it the same size as the training data
-        """
-        title = self.preprocess_text(title)
-        vectorized_title = torch.tensor(
-            self.vectorizer.vectorize(title, vector_length=self.dataset._max_seq_length + 1))
-        result = self.classifier(vectorized_title.unsqueeze(0), apply_softmax=True)
+        result = self.classifier(vectorized_surname, vec_length, apply_softmax=True)
         probability_values, indices = result.max(dim=1)
-        predicted_category = self.vectorizer.category_vocab.lookup_index(indices.item())
 
-        return {'category': predicted_category,
-                'probability': probability_values.item()}
+        index = indices.item()
+        prob_value = probability_values.item()
+
+        predicted_nationality = self.vectorizer.nationality_vocab.lookup_index(index)
+
+        return {'nationality': predicted_nationality, 'probability': prob_value, 'surname': surname}
 
     @classmethod
     def learner_from_args(cls, args):
@@ -284,37 +273,22 @@ class Learner(object):
         if args.reload_from_files:
             # training from a checkpoint
             print("Loading dataset and loading vectorizer")
-            dataset = NewsDataset.load_dataset_and_load_vectorizer(args.news_csv,
-                                                                   args.vectorizer_file)
+            dataset = SurnameDataset.load_dataset_and_load_vectorizer(args.news_csv,
+                                                                      args.vectorizer_file)
         else:
             # create dataset and vectorizer
             print("Loading dataset and creating vectorizer")
-            dataset = NewsDataset.load_dataset_and_make_vectorizer(args.news_csv)
+            dataset = SurnameDataset.load_dataset_and_make_vectorizer(args.surname_csv)
             dataset.save_vectorizer(args.vectorizer_file)
         vectorizer = dataset.get_vectorizer()
 
-        # Use GloVe or randomly initialized embeddings
-        if args.use_glove:
-            words = vectorizer.title_vocab._token_to_idx.keys()
-            embeddings = make_embedding_matrix(glove_filepath=args.glove_filepath,
-                                               words=words)
-            print("Using pre-trained embeddings")
-        else:
-            print("Not using pre-trained embeddings")
-            embeddings = None
-
-        classifier = NewsClassifier(embedding_size=args.embedding_size,
-                                    num_embeddings=len(vectorizer.title_vocab),
-                                    num_channels=args.num_channels,
-                                    hidden_dim=args.hidden_dim,
-                                    num_classes=len(vectorizer.category_vocab),
-                                    dropout_p=args.dropout_p,
-                                    pretrained_embeddings=embeddings,
-                                    padding_idx=0)
-        dataset.class_weights = dataset.class_weights.to(args.device)
+        classifier = SurnameClassifier(embedding_size=args.char_embedding_size,
+                                       num_embeddings=len(vectorizer.char_vocab),
+                                       num_classes=len(vectorizer.nationality_vocab),
+                                       rnn_hidden_size=args.rnn_hidden_size,
+                                       padding_idx=vectorizer.char_vocab.mask_index)
 
         classifier = classifier.to(args.device)
-        # dataset.class_weights = dataset.class_weights.to(args.device)
         learner = cls(args, dataset, vectorizer, classifier)
         # todo check reloading part
         if args.reload_from_files:
