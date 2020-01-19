@@ -230,6 +230,7 @@ class Learner(object):
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
 
     def predict_category(self, surname):
+        self.classifier.eval()
         vectorized_surname, vec_length = self.vectorizer.vectorize(surname)
         vectorized_surname = torch.tensor(vectorized_surname).unsqueeze(dim=0)
         vec_length = torch.tensor([vec_length], dtype=torch.int64)
@@ -273,7 +274,7 @@ class Learner(object):
         if args.reload_from_files:
             # training from a checkpoint
             print("Loading dataset and loading vectorizer")
-            dataset = SurnameDataset.load_dataset_and_load_vectorizer(args.news_csv,
+            dataset = SurnameDataset.load_dataset_and_load_vectorizer(args.surname_csv,
                                                                       args.vectorizer_file)
         else:
             # create dataset and vectorizer
@@ -290,7 +291,6 @@ class Learner(object):
 
         classifier = classifier.to(args.device)
         learner = cls(args, dataset, vectorizer, classifier)
-        # todo check reloading part
         if args.reload_from_files:
             learner_states = torch.load(Path(args.model_state_file))
             learner.optimizer.load_state_dict(learner_states['optimizer'])

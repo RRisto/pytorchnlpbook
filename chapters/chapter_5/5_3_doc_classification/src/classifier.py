@@ -52,6 +52,8 @@ class NewsClassifier(nn.Module):
         self._dropout_p = dropout_p
         self.fc1 = nn.Linear(num_channels, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, num_classes)
+        self.drop1=nn.Dropout(p=self._dropout_p)
+        self.drop2=nn.Dropout(p=self._dropout_p)
 
     def forward(self, x_in, apply_softmax=False):
         """The forward pass of the classifier
@@ -73,10 +75,10 @@ class NewsClassifier(nn.Module):
         # average and remove the extra dimension
         remaining_size = features.size(dim=2)
         features = F.avg_pool1d(features, remaining_size).squeeze(dim=2)
-        features = F.dropout(features, p=self._dropout_p)
+        features = self.drop1(features)
 
         # mlp classifier
-        intermediate_vector = F.relu(F.dropout(self.fc1(features), p=self._dropout_p))
+        intermediate_vector = F.relu(self.drop2(self.fc1(features)))
         prediction_vector = self.fc2(intermediate_vector)
 
         if apply_softmax:
