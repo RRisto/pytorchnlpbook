@@ -202,6 +202,7 @@ class Learner(object):
         self.dataset.set_split('test')
         batch_generator = generate_batches(self.dataset,
                                            batch_size=self.args.batch_size,
+                                           shuffle=False,
                                            device=self.args.device)
         running_loss = 0.
         running_acc = 0.

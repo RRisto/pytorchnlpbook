@@ -195,7 +195,6 @@ class Learner(object):
                 self.train_state['early_stopping_step'] >= self.args.early_stopping_criteria
 
     def validate(self):
-        # self.classifier.load_state_dict(torch.load(self.train_state['model_filename']))
         self.load_model(self.train_state['model_filename'])
         self.classifier = self.classifier.to(self.args.device)
         self.dataset.class_weights = self.dataset.class_weights.to(self.args.device)
@@ -204,6 +203,7 @@ class Learner(object):
         self.dataset.set_split('test')
         batch_generator = generate_batches(self.dataset,
                                            batch_size=self.args.batch_size,
+                                           shuffle=False,
                                            device=self.args.device)
         running_loss = 0.
         running_acc = 0.
