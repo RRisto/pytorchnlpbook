@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class CBOWClassifier(nn.Module):  # Simplified cbow Model
-    def __init__(self, vocabulary_size, embedding_size, padding_idx=0):
+    def __init__(self, vocabulary_size, embedding_size, padding_idx=0, dropout_p=0.3):
         """
         Args:
             vocabulary_size (int): number of vocabulary items, controls the
@@ -17,6 +17,7 @@ class CBOWClassifier(nn.Module):  # Simplified cbow Model
                                       padding_idx=padding_idx)
         self.fc1 = nn.Linear(in_features=embedding_size,
                              out_features=vocabulary_size)
+        self.drop=nn.Dropout(p=dropout_p)
 
     def forward(self, x_in, apply_softmax=False):
         """The forward pass of the classifier
@@ -29,7 +30,7 @@ class CBOWClassifier(nn.Module):  # Simplified cbow Model
         Returns:
             the resulting tensor. tensor.shape should be (batch, output_dim)
         """
-        x_embedded_sum = F.dropout(self.embedding(x_in).sum(dim=1), 0.3)
+        x_embedded_sum = self.drop(self.embedding(x_in).sum(dim=1))
         y_out = self.fc1(x_embedded_sum)
 
         if apply_softmax:
