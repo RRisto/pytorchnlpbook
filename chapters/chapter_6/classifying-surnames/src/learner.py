@@ -1,14 +1,13 @@
 import os
-import re
 from pathlib import Path
 
 import torch
 from torch import optim
 import torch.nn as nn
 from tqdm import tqdm_notebook as tqdm
+from sklearn.metrics import classification_report
 
 from .dataset import generate_batches, SurnameDataset
-
 from .utils import set_seed_everywhere, handle_dirs
 from .classifier import SurnameClassifier
 from .utils import make_train_state, compute_accuracy
@@ -208,6 +207,8 @@ class Learner(object):
         running_loss = 0.
         running_acc = 0.
         self.classifier.eval()
+        y_reals = []
+        y_preds = []
 
         for batch_index, batch_dict in enumerate(batch_generator):
             # compute the output
@@ -220,7 +221,9 @@ class Learner(object):
             running_loss += (loss_t - running_loss) / (batch_index + 1)
 
             # compute the accuracy
-            acc_t = compute_accuracy(y_pred, batch_dict['y_target'])
+            acc_t, y_real_, y_pred_ = compute_accuracy(y_pred, batch_dict['y_target'], return_labels_data=True)
+            y_reals.extend(y_real_.tolist())
+            y_preds.extend(y_pred_.tolist())
             running_acc += (acc_t - running_acc) / (batch_index + 1)
 
         self.train_state['test_loss'] = running_loss
@@ -228,6 +231,10 @@ class Learner(object):
 
         print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
+
+        y_reals=[self.vectorizer.nationality_vocab.lookup_index(index) for index in y_reals]
+        y_preds=[self.vectorizer.nationality_vocab.lookup_index(index) for index in y_preds]
+        print(f'More detailed report: \n {classification_report(y_reals, y_preds)}')
 
     def predict_category(self, surname):
         self.classifier.eval()

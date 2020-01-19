@@ -11,7 +11,7 @@ args = Namespace(
     char_embedding_size=100,
     rnn_hidden_size=64,
     # Training hyper parameter
-    num_epochs=10,
+    num_epochs=1,
     learning_rate=1e-3,
     batch_size=64,
     seed=1337,
