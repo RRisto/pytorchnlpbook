@@ -42,5 +42,5 @@ def compute_accuracy(y_pred, y_target, metric='f1', return_labels_data=False):
     elif metric == 'f1':
         acc = f1_score(y_target, y_pred_indices, average='weighted')
     if return_labels_data:
-        return acc *100, y_target, y_pred_indices
+        return acc * 100, y_target, y_pred_indices
     return acc * 100

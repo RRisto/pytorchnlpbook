@@ -232,8 +232,8 @@ class Learner(object):
         print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
 
-        y_reals=[self.vectorizer.nationality_vocab.lookup_index(index) for index in y_reals]
-        y_preds=[self.vectorizer.nationality_vocab.lookup_index(index) for index in y_preds]
+        y_reals = [self.vectorizer.nationality_vocab.lookup_index(index) for index in y_reals]
+        y_preds = [self.vectorizer.nationality_vocab.lookup_index(index) for index in y_preds]
         print(f'More detailed report: \n {classification_report(y_reals, y_preds)}')
 
     def predict_category(self, surname):

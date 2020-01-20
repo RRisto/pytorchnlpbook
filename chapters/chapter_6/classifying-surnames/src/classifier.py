@@ -117,8 +117,8 @@ class SurnameClassifier(nn.Module):
                              out_features=rnn_hidden_size)
         self.fc2 = nn.Linear(in_features=rnn_hidden_size,
                              out_features=num_classes)
-        self.drop1=nn.Dropout(p=0.5)
-        self.drop2=nn.Dropout(p=0.5)
+        self.drop1 = nn.Dropout(p=0.5)
+        self.drop2 = nn.Dropout(p=0.5)
 
     def forward(self, x_in, x_lengths=None, apply_softmax=False):
         """The forward pass of the classifier
