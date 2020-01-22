@@ -5,12 +5,11 @@ import torch
 from torch import optim
 import torch.nn as nn
 from tqdm import tqdm_notebook as tqdm
-from sklearn.metrics import classification_report
 from functools import partial
 
 from .dataset import generate_batches, SurnameDataset
 from .utils import set_seed_everywhere, handle_dirs, make_train_state, sequence_loss
-from .model import SurnameGenerationModel
+from .model import SurnameGenerationModel, sample_from_model, decode_samples
 from .utils import compute_accuracy
 from .radam import RAdam
 
@@ -69,7 +68,7 @@ class Learner(object):
             self.optimizer.zero_grad()
 
             # step 2. compute the output
-            y_pred = self.model(x_in=batch_dict['x_data'], x_lengths=batch_dict['x_length'])
+            y_pred = self.model(x_in=batch_dict['x_data'])
 
             # step 3. compute the loss
             loss = self.loss_func(y_pred, batch_dict['y_target'])
@@ -198,8 +197,6 @@ class Learner(object):
     def validate(self):
         self.load_model(self.train_state['model_filename'])
         self.model = self.model.to(self.args.device)
-        self.dataset.class_weights = self.dataset.class_weights.to(self.args.device)
-        self.loss_func = nn.CrossEntropyLoss(self.dataset.class_weights)
 
         self.dataset.set_split('test')
         batch_generator = generate_batches(self.dataset,
@@ -209,13 +206,10 @@ class Learner(object):
         running_loss = 0.
         running_acc = 0.
         self.model.eval()
-        y_reals = []
-        y_preds = []
 
         for batch_index, batch_dict in enumerate(batch_generator):
             # compute the output
-            y_pred = self.model(batch_dict['x_data'],
-                                x_lengths=batch_dict['x_length'])
+            y_pred = self.model(batch_dict['x_data'])
 
             # compute the loss
             loss = self.loss_func(y_pred, batch_dict['y_target'])
@@ -223,7 +217,7 @@ class Learner(object):
             running_loss += (loss_t - running_loss) / (batch_index + 1)
 
             # compute the accuracy
-            acc_t, y_real_, y_pred_ = compute_accuracy(y_pred, batch_dict['y_target'], self.mask_index)
+            acc_t = compute_accuracy(y_pred, batch_dict['y_target'], self.mask_index)
             running_acc += (acc_t - running_acc) / (batch_index + 1)
 
         self.train_state['test_loss'] = running_loss
@@ -232,21 +226,15 @@ class Learner(object):
         print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
 
-    def predict_category(self, surname):
-        self.model.eval()
-        vectorized_surname, vec_length = self.vectorizer.vectorize(surname)
-        vectorized_surname = torch.tensor(vectorized_surname).unsqueeze(dim=0)
-        vec_length = torch.tensor([vec_length], dtype=torch.int64)
-
-        result = self.model(vectorized_surname, vec_length, apply_softmax=True)
-        probability_values, indices = result.max(dim=1)
-
-        index = indices.item()
-        prob_value = probability_values.item()
-
-        predicted_nationality = self.vectorizer.nationality_vocab.lookup_index(index)
-
-        return {'nationality': predicted_nationality, 'probability': prob_value, 'surname': surname}
+    def generate(self, num_names):
+        # Generate nationality hidden state
+        sampled_surnames = decode_samples(
+            sample_from_model(self.model, self.vectorizer, num_samples=num_names),
+            self.vectorizer)
+        # Show results
+        print("-" * 15)
+        for i in range(num_names):
+            print(sampled_surnames[i])
 
     @classmethod
     def learner_from_args(cls, args):
