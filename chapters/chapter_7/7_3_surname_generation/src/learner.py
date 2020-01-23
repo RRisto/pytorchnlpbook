@@ -3,7 +3,6 @@ from pathlib import Path
 
 import torch
 from torch import optim
-import torch.nn as nn
 from tqdm import tqdm_notebook as tqdm
 from functools import partial
 
@@ -288,3 +287,48 @@ class Learner(object):
             learner.scheduler = learner_states['scheduler']
             learner.train_state = learner_states['train_state']
         return learner
+
+
+class ConstrainedLearner(Learner):
+    def __init__(self, args, dataset, vectorizer, model):
+        super().__init__(self, args, dataset, vectorizer, model)
+
+    def train_eval_epoch(self, batch_generator, epoch_index, progress_bar, train_val='train'):
+        if train_val not in ['train', 'val']:
+            raise ValueError
+
+        running_loss = 0.0
+        running_acc = 0.0
+        for batch_index, batch_dict in enumerate(batch_generator):
+            # the training routine is these 5 steps:
+
+            # --------------------------------------
+            # step 1. zero the gradients
+            self.optimizer.zero_grad()
+
+            # step 2. compute the output
+            y_pred = self.model(x_in=batch_dict['x_data'], nationality_index=batch_dict['class_index'])
+
+            # step 3. compute the loss
+            loss = self.loss_func(y_pred, batch_dict['y_target'], self.mask_index)
+            loss_t = loss.item()
+            running_loss += (loss_t - running_loss) / (batch_index + 1)
+
+            if train_val == 'train':
+                # step 4. use loss to produce gradients
+                loss.backward()
+
+                # step 5. use optimizer to take gradient step
+                self.optimizer.step()
+            # -----------------------------------------
+            # compute the accuracy
+            acc_t = compute_accuracy(y_pred, batch_dict['y_target'], self.mask_index)
+            running_acc += (acc_t - running_acc) / (batch_index + 1)
+
+            # update bar
+            progress_bar.set_postfix(loss=running_loss, acc=running_acc,
+                                     epoch=epoch_index)
+            progress_bar.update()
+
+        self.train_state[f'{train_val}_loss'].append(running_loss)
+        self.train_state[f'{train_val}_acc'].append(running_acc)
