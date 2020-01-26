@@ -190,7 +190,7 @@ class SurnameGenerationModelConditioned(nn.Module):
 
 
 def sample_from_model_conditioned(model, vectorizer, nationalities, sample_size=20,
-                      temperature=1.0):
+                                  temperature=1.0):
     """Sample a sequence of indices from the model
 
     Args:
