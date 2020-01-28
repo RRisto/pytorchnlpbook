@@ -11,7 +11,7 @@ import numpy as np
 
 from .dataset import NMTDataset, generate_nmt_batches
 from .sampler import NMTSampler
-from .model import NMTModel
+from .model import NMTModel, NMTModelSampling
 from .utils import set_seed_everywhere, handle_dirs
 from .utils import make_train_state, compute_accuracy, sequence_loss
 from .radam import RAdam
@@ -333,12 +333,17 @@ class Learner(object):
             dataset.save_vectorizer(args.vectorizer_file)
         vectorizer = dataset.get_vectorizer()
 
-        model = NMTModel(source_vocab_size=len(vectorizer.source_vocab),
+        if args.sampling:
+            model_cls=NMTModelSampling
+        else:
+            model_cls=NMTModel
+        model = model_cls(source_vocab_size=len(vectorizer.source_vocab),
                          source_embedding_size=args.source_embedding_size,
                          target_vocab_size=len(vectorizer.target_vocab),
                          target_embedding_size=args.target_embedding_size,
                          encoding_size=args.encoding_size,
                          target_bos_index=vectorizer.target_vocab.begin_seq_index)
+
 
         model = model.to(args.device)
         learner = cls(args, dataset, vectorizer, model)
