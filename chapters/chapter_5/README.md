@@ -21,6 +21,7 @@
 
 - (for dataset preprocessing) [5_2_munging_frankenstein](5_2_CBOW/5_2_munging_frankenstein.ipynb)
 - [5_2_Continuous_Bag_of_Words_CBOW](5_2_CBOW/5_2_Continuous_Bag_of_Words_CBOW.ipynb)
+- [5_2_Continuous_Bag_of_Words_CBOW_refactored](5_2_CBOW/5_2_Continuous_Bag_of_Words_CBOW_refactored.ipynb)
 
 ### Corresponding examples in the book
 
@@ -36,6 +37,7 @@
 
 - (for dataset preprocessing) [5_3_Munging_AG_News](5_3_doc_classification/5_3_Munging_AG_News.ipynb)
 - [5_3_Document_Classification_with_CNN](5_3_doc_classification/5_3_Document_Classification_with_CNN.ipynb)
+- [5_3_Document_Classification_with_CNN_refactored](5_3_doc_classification/5_3_Document_Classification_with_CNN_refactored.ipynb)
 
 
 ### Corresponding examples in the book

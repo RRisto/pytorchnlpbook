@@ -17,6 +17,7 @@
 
 - (for dataset preprocessing) [8_5_nmt_munging](8_5_NMT/8_5_nmt_munging.ipynb)
 - [8_5_NMT_No_Sampling](8_5_NMT/8_5_NMT_No_Sampling.ipynb)
+- [8_5_NMT_No_Sampling_refactored](8_5_NMT/8_5_NMT_No_Sampling_refactored.ipynb)
 
 ### Corresponding examples in the book
 
@@ -33,6 +34,7 @@
 ### Notebooks
 
 - [8_5_NMT_scheduled_sampling](8_5_NMT/8_5_NMT_scheduled_sampling.ipynb)
+- [8_5_NMT_scheduled_sampling_refactored](8_5_NMT/8_5_NMT_scheduled_sampling_refactored.ipynb)
 
 ### Corresponding examples in the book
 

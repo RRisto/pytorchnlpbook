@@ -36,6 +36,7 @@ No actual code examples are shown in the book for the XOR problem, but the plots
 
 - (for dataset preprocessing) [munging_surname_dataset](4_2_mlp_surnames/munging_surname_dataset.ipynb)
 - [4_2_Classifying_Surnames_with_an_MLP](4_2_mlp_surnames/4_2_Classifying_Surnames_with_an_MLP.ipynb)
+- [4_2_Classifying_Surnames_with_an_MLP_refactored](4_2_mlp_surnames/4_2_Classifying_Surnames_with_an_MLP_refactored.ipynb)
  
 ### Corresponding examples in the book
 
@@ -55,6 +56,7 @@ No actual code examples are shown in the book for the XOR problem, but the plots
 
 - (for dataset preprocessing) [munging_surname_dataset](4_4_cnn_surnames/munging_surname_dataset.ipynb)
 - [4_4_Classifying_Surnames_with_a_CNN](4_4_cnn_surnames/4_4_Classifying_Surnames_with_a_CNN.ipynb)
+- [4_4_Classifying_Surnames_with_a_CNN_refactored](4_4_cnn_surnames/4_4_Classifying_Surnames_with_a_CNN_refactored.ipynb)
  
 ### Corresponding examples in the book
 

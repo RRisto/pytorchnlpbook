@@ -19,7 +19,9 @@ torch.nn.utils.clip_grad_norm(model.parameters(), 0.25)
 
 - (for dataset preprocessing) [7_3_Munging_Surname_Dataset](7_3_surname_generation/7_3_Munging_Surname_Dataset.ipynb)
 - [7_3_Model1_Unconditioned_Surname_Generation](7_3_surname_generation/7_3_Model1_Unconditioned_Surname_Generation.ipynb) 
+- [7_3_Model1_Unconditioned_Surname_Generation_refactored](7_3_surname_generation/7_3_Model1_Unconditioned_Surname_Generation_refactored.ipynb) 
 - [7_3_Model2_Conditioned_Surname_Generation](7_3_surname_generation/7_3_Model2_Conditioned_Surname_Generation.ipynb)
+- [7_3_Model2_Conditioned_Surname_Generation_refactored](7_3_surname_generation/7_3_Model2_Conditioned_Surname_Generation_refactored.ipynb)
 
 ### Corresponding examples in the book
 

@@ -6,6 +6,7 @@
 
 - (for dataset preprocessing) [Chapter-6-Munging-Surname-Dataset](classifying-surnames/Chapter-6-Munging-Surname-Dataset.ipynb)
 - [Chapter-6-Surname-Classification-with-RNNs](classifying-surnames/Chapter-6-Surname-Classification-with-RNNs.ipynb)
+- [Chapter-6-Surname-Classification-with-RNNs_refactored](classifying-surnames/Chapter-6-Surname-Classification-with-RNNs_refactored.ipynb)
 
 
 ### Corresponding examples in the book
