@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class CBOWClassifier(nn.Module):  # Simplified cbow Model
     def __init__(self, vocabulary_size, embedding_size, padding_idx=0, dropout_p=0.3):
         """
@@ -17,7 +18,7 @@ class CBOWClassifier(nn.Module):  # Simplified cbow Model
                                       padding_idx=padding_idx)
         self.fc1 = nn.Linear(in_features=embedding_size,
                              out_features=vocabulary_size)
-        self.drop=nn.Dropout(p=dropout_p)
+        self.drop = nn.Dropout(p=dropout_p)
 
     def forward(self, x_in, apply_softmax=False):
         """The forward pass of the classifier

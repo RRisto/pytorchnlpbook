@@ -10,7 +10,7 @@ from .dataset import generate_batches, CBOWDataset
 
 from .utils import set_seed_everywhere, handle_dirs, compute_accuracy
 from .classifier import CBOWClassifier
-from .utils import make_train_state, update_train_state
+from .utils import make_train_state
 from .radam import RAdam
 
 
@@ -119,8 +119,6 @@ class Learner(object):
 
                 self.classifier.eval()
                 self.train_eval_epoch(batch_generator, epoch_index, val_bar, 'val')
-                #self.train_state = update_train_state(args=self.args, model=self.classifier,
-                 #                                     train_state=self.train_state)
                 self.update_train_state()
 
                 self.scheduler.step(self.train_state['val_loss'][-1])
@@ -136,22 +134,20 @@ class Learner(object):
 
     def save_model(self):
         state = {
-            #'loss_fun': self.loss_func,
             'scheduler': self.scheduler,
             'state_dict': self.classifier.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'train_state': self.train_state,
-            'args':self.args
+            'args': self.args
         }
         torch.save(state, self.train_state['model_filename'])
 
     def load_model(self, filename):
         learner = torch.load(filename)
-        self.scheduler=learner['scheduler']
+        self.scheduler = learner['scheduler']
         self.classifier.load_state_dict(learner['state_dict'])
         self.optimizer.load_state_dict(learner['optimizer'])
-        self.train_state=learner['train_state']
-
+        self.train_state = learner['train_state']
 
     def update_train_state(self):
         """Handle the training state updates.
@@ -195,9 +191,9 @@ class Learner(object):
                 self.train_state['early_stopping_step'] >= self.args.early_stopping_criteria
 
     def validate(self):
-        #self.classifier.load_state_dict(torch.load(self.train_state['model_filename']))
         self.load_model(self.train_state['model_filename'])
         self.classifier = self.classifier.to(self.args.device)
+        self.classifier.eval()
 
         self.dataset.set_split('test')
         batch_generator = generate_batches(self.dataset,
@@ -226,6 +222,36 @@ class Learner(object):
 
         print(f"Test loss: {round(self.train_state['test_loss'], 3)}")
         print(f"Test Accuracy: {round(self.train_state['test_acc'], 3)}")
+
+    def pretty_print(self, results):
+        """
+        Pretty print embedding results.
+        """
+        for item in results:
+            print("...[%.2f] - %s" % (item[1], item[0]))
+
+    def get_closest(self, target_word, word_to_idx, embeddings, n=5):
+        """
+        Get the n closest
+        words to your word.
+        """
+
+        # Calculate distances to all other words
+
+        word_embedding = embeddings[word_to_idx[target_word.lower()]]
+        distances = []
+        for word, index in word_to_idx.items():
+            if word == "<MASK>" or word == target_word:
+                continue
+            distances.append((word, torch.dist(word_embedding, embeddings[index])))
+
+        results = sorted(distances, key=lambda x: x[1])[1:n + 2]
+        return results
+
+    def get_closest_words(self, word):
+        embeddings = self.classifier.embedding.weight.data
+        word_to_idx = self.vectorizer.cbow_vocab._token_to_idx
+        self.pretty_print(self.get_closest(word, word_to_idx, embeddings, n=5))
 
     @classmethod
     def learner_from_args(cls, args):
@@ -269,12 +295,11 @@ class Learner(object):
                                     embedding_size=args.embedding_size)
 
         classifier = classifier.to(args.device)
-        # dataset.class_weights = dataset.class_weights.to(args.device)
-        learner= cls(args, dataset, vectorizer, classifier)
+        learner = cls(args, dataset, vectorizer, classifier)
         if args.reload_from_files:
             learner_states = torch.load(Path(args.model_state_file))
             learner.optimizer.load_state_dict(learner_states['optimizer'])
             learner.classifier.load_state_dict(learner_states['state_dict'])
-            learner.scheduler=learner_states['scheduler']
-            learner.train_state=learner_states['train_state']
+            learner.scheduler = learner_states['scheduler']
+            learner.train_state = learner_states['train_state']
         return learner

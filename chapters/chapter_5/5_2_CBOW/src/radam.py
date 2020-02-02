@@ -75,7 +75,7 @@ class RAdam(Optimizer):
                     if N_sma >= 5:
                         step_size = math.sqrt(
                             (1 - beta2_t) * (N_sma - 4) / (N_sma_max - 4) * (N_sma - 2) / N_sma * N_sma_max / (
-                                        N_sma_max - 2)) / (1 - beta1 ** state['step'])
+                                    N_sma_max - 2)) / (1 - beta1 ** state['step'])
                     elif self.degenerated_to_sgd:
                         step_size = 1.0 / (1 - beta1 ** state['step'])
                     else:
@@ -162,7 +162,7 @@ class PlainRAdam(Optimizer):
                         p_data_fp32.add_(-group['weight_decay'] * group['lr'], p_data_fp32)
                     step_size = group['lr'] * math.sqrt(
                         (1 - beta2_t) * (N_sma - 4) / (N_sma_max - 4) * (N_sma - 2) / N_sma * N_sma_max / (
-                                    N_sma_max - 2)) / (1 - beta1 ** state['step'])
+                                N_sma_max - 2)) / (1 - beta1 ** state['step'])
                     denom = exp_avg_sq.sqrt().add_(group['eps'])
                     p_data_fp32.addcdiv_(-step_size, exp_avg, denom)
                     p.data.copy_(p_data_fp32)

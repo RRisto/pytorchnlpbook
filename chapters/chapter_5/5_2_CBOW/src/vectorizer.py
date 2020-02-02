@@ -1,6 +1,7 @@
 from .vocabulary import Vocabulary
 import numpy as np
 
+
 class CBOWVectorizer(object):
     """ The Vectorizer which coordinates the Vocabularies and puts them to use"""
 
