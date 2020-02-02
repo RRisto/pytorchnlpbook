@@ -5,7 +5,8 @@ _Build Intelligent Language Applications Using Deep Learning_
 
 
 Welcome. This is a companion repository for the book [Natural Language Processing with PyTorch: Build Intelligent Language Applications Using Deep Learning](https://www.amazon.com/Natural-Language-Processing-PyTorch-Applications/dp/1491978236/).
-I have refactored original code a bit and fixed some bugs. Most notable change is adding src folder to each chapter and learner class for training and using the model. Also there are notebooks for showing how to use refactored code.
+
+__I have refactored original code a bit and fixed some bugs.__ Most notable changes are adding src folder to each chapter and learner class for training/using the model. There are also notebooks for showing how to use refactored code.
 
 Table of Contents
 =================
