@@ -70,7 +70,7 @@ class NewsDataset(Dataset):
         """
         news_df = pd.read_csv(news_csv)
         vectorizer = cls.load_vectorizer_only(vectorizer_filepath)
-        return cls(news_csv, vectorizer)
+        return cls(news_df, vectorizer)
 
     @staticmethod
     def load_vectorizer_only(vectorizer_filepath):
