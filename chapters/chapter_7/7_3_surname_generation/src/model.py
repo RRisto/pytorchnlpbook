@@ -153,7 +153,7 @@ class SurnameGenerationModelConditioned(nn.Module):
         self.fc = nn.Linear(in_features=rnn_hidden_size,
                             out_features=char_vocab_size)
 
-        self._dropout_p = dropout_p
+        self.drop=nn.Dropout(dropout_p)
 
     def forward(self, x_in, nationality_index, apply_softmax=False):
         """The forward pass of the model
@@ -178,7 +178,7 @@ class SurnameGenerationModelConditioned(nn.Module):
         batch_size, seq_size, feat_size = y_out.shape
         y_out = y_out.contiguous().view(batch_size * seq_size, feat_size)
 
-        y_out = self.fc(F.dropout(y_out, p=self._dropout_p))
+        y_out = self.fc(self.drop(y_out))
 
         if apply_softmax:
             y_out = F.softmax(y_out, dim=1)
