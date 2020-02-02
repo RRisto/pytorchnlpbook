@@ -334,16 +334,15 @@ class Learner(object):
         vectorizer = dataset.get_vectorizer()
 
         if args.sampling:
-            model_cls=NMTModelSampling
+            model_cls = NMTModelSampling
         else:
-            model_cls=NMTModel
+            model_cls = NMTModel
         model = model_cls(source_vocab_size=len(vectorizer.source_vocab),
-                         source_embedding_size=args.source_embedding_size,
-                         target_vocab_size=len(vectorizer.target_vocab),
-                         target_embedding_size=args.target_embedding_size,
-                         encoding_size=args.encoding_size,
-                         target_bos_index=vectorizer.target_vocab.begin_seq_index)
-
+                          source_embedding_size=args.source_embedding_size,
+                          target_vocab_size=len(vectorizer.target_vocab),
+                          target_embedding_size=args.target_embedding_size,
+                          encoding_size=args.encoding_size,
+                          target_bos_index=vectorizer.target_vocab.begin_seq_index)
 
         model = model.to(args.device)
         learner = cls(args, dataset, vectorizer, model)

@@ -39,6 +39,7 @@ Important note:  we make available the raw dataset and the "light" version in th
 
 - (for dataset preprocessing) ["light"](3_5_yelp_dataset_preprocessing_LITE.ipynb) or ["full"](3_5_yelp_dataset_preprocessing_FULL.ipynb) 
 - [3_5_Classifying_Yelp_Review_Sentiment](3_5_Classifying_Yelp_Review_Sentiment.ipynb)
+- [3_5_Classifying_Yelp_Review_Sentiment_refactored](3_5_Classifying_Yelp_Review_Sentiment_refactored.ipynb)
 
 ### Corresponding examples in the book
 

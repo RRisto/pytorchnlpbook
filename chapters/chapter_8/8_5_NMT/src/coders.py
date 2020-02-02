@@ -101,6 +101,7 @@ class NMTDecoder(nn.Module):
                                    rnn_hidden_size)
         self.hidden_map = nn.Linear(rnn_hidden_size, rnn_hidden_size)
         self.classifier = nn.Linear(rnn_hidden_size * 2, num_embeddings)
+        self.drop = nn.Dropout(0.3)
         self.bos_index = bos_index
 
     def _init_indices(self, batch_size):
@@ -165,7 +166,7 @@ class NMTDecoder(nn.Module):
 
             # Step 4: Use the current hidden and context vectors to make a prediction to the next word
             prediction_vector = torch.cat((context_vectors, h_t), dim=1)
-            score_for_y_t_index = self.classifier(F.dropout(prediction_vector, 0.3))
+            score_for_y_t_index = self.classifier(self.drop(prediction_vector))
 
             # auxillary: collect the prediction scores
             output_vectors.append(score_for_y_t_index)
@@ -194,6 +195,7 @@ class NMTDecoderSampling(nn.Module):
                                    rnn_hidden_size)
         self.hidden_map = nn.Linear(rnn_hidden_size, rnn_hidden_size)
         self.classifier = nn.Linear(rnn_hidden_size * 2, num_embeddings)
+        self.drop = nn.Dropout(0.3)
         self.bos_index = bos_index
         self._sampling_temperature = 3
 
@@ -267,7 +269,7 @@ class NMTDecoderSampling(nn.Module):
 
             # Step 4: Use the current hidden and context vectors to make a prediction to the next word
             prediction_vector = torch.cat((context_vectors, h_t), dim=1)
-            score_for_y_t_index = self.classifier(F.dropout(prediction_vector, 0.3))
+            score_for_y_t_index = self.classifier(self.drop(prediction_vector))
 
             if use_sample:
                 p_y_t_index = F.softmax(score_for_y_t_index * self._sampling_temperature, dim=1)
