@@ -84,7 +84,7 @@ class Learner(object):
                 self.optimizer.step()
             # -----------------------------------------
             # compute the accuracy
-            acc_t = compute_accuracy(y_pred, batch_dict['y_target'])
+            acc_t = compute_accuracy(y_pred.cpu(), batch_dict['y_target'].cpu())
             running_acc += (acc_t - running_acc) / (batch_index + 1)
 
             # update bar
@@ -221,7 +221,7 @@ class Learner(object):
             running_loss += (loss_t - running_loss) / (batch_index + 1)
 
             # compute the accuracy
-            acc_t, y_real_, y_pred_ = compute_accuracy(y_pred, batch_dict['y_target'], return_labels_data=True)
+            acc_t, y_real_, y_pred_ = compute_accuracy(y_pred.cpu(), batch_dict['y_target'].cpu(), return_labels_data=True)
             y_reals.extend(y_real_.tolist())
             y_preds.extend(y_pred_.tolist())
             running_acc += (acc_t - running_acc) / (batch_index + 1)
@@ -253,7 +253,8 @@ class Learner(object):
         review = self.preprocess_text(review)
 
         vectorized_review = torch.tensor(self.vectorizer.vectorize(review))
-        result = self.classifier(vectorized_review.view(1, -1))
+        self.classifier = self.classifier.to('cpu')
+        result = self.classifier(vectorized_review.view(1, -1).cpu())
 
         probability_value = F.sigmoid(result).item()
         index = 1
