@@ -69,6 +69,10 @@ class Learner(object):
             y_pred = self.classifier(batch_dict['x_surname'])
 
             # step 3. compute the loss
+            if self.args.cuda:
+                self.loss_func.weight = self.loss_func.weight.cpu()
+                y_pred = y_pred.cpu()
+                batch_dict['y_nationality'] = batch_dict['y_nationality'].cpu()
             loss = self.loss_func(y_pred, batch_dict['y_nationality'])
             loss_t = loss.item()
             running_loss += (loss_t - running_loss) / (batch_index + 1)
@@ -160,8 +164,6 @@ class Learner(object):
 
                 self.classifier.eval()
                 self.train_eval_epoch(batch_generator, epoch_index, val_bar, 'val')
-                # self.train_state = update_train_state(args=self.args, model=self.classifier,
-                #                                     train_state=self.train_state)
                 self.update_train_state()
 
                 self.scheduler.step(self.train_state['val_loss'][-1])
@@ -197,6 +199,10 @@ class Learner(object):
             y_pred = self.classifier(batch_dict['x_surname'])
 
             # compute the loss
+            if self.args.cuda:
+                self.loss_func.weight = self.loss_func.weight.cpu()
+                y_pred = y_pred.cpu()
+                batch_dict['y_nationality'] = batch_dict['y_nationality'].cpu()
             loss = self.loss_func(y_pred, batch_dict['y_nationality'])
             loss_t = loss.item()
             running_loss += (loss_t - running_loss) / (batch_index + 1)
