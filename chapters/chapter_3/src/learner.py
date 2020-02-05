@@ -242,6 +242,7 @@ class Learner(object):
 
     def predict_rating(self, review, decision_threshold=0.5):
         self.classifier.eval()
+        self.classifier = self.classifier.to('cpu')
         """Predict the rating of a review
 
            Args:
@@ -253,7 +254,6 @@ class Learner(object):
         review = self.preprocess_text(review)
 
         vectorized_review = torch.tensor(self.vectorizer.vectorize(review))
-        self.classifier = self.classifier.to('cpu')
         result = self.classifier(vectorized_review.view(1, -1).cpu())
 
         probability_value = F.sigmoid(result).item()
