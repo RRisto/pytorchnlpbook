@@ -242,6 +242,8 @@ class Learner(object):
 
     def predict_nationality(self, surname):
         self.classifier.eval()
+        if self.args.cuda:
+            self.classifier.to('cpu')
         vectorized_surname = self.vectorizer.vectorize(surname)
         vectorized_surname = torch.tensor(vectorized_surname).unsqueeze(0)
 
