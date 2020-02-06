@@ -249,6 +249,8 @@ class Learner(object):
         title = self.preprocess_text(title)
         vectorized_title = torch.tensor(
             self.vectorizer.vectorize(title, vector_length=self.dataset._max_seq_length + 1))
+        if self.args.cuda:
+            self.classifier.to('cpu')
         result = self.classifier(vectorized_title.unsqueeze(0), apply_softmax=True)
         probability_values, indices = result.max(dim=1)
         predicted_category = self.vectorizer.category_vocab.lookup_index(indices.item())
