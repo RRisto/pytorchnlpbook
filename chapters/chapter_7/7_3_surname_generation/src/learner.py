@@ -252,6 +252,8 @@ class Learner(object):
                 print("-  " + sampled_surname)
 
     def generate(self, num_names):
+        if self.args.cuda:
+            self.model.to('cpu')
         if self.args.conditioned:
             self.generate_conditioned(num_names)
         else:
