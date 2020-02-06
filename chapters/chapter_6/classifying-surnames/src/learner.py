@@ -70,7 +70,7 @@ class Learner(object):
             y_pred = self.classifier(x_in=batch_dict['x_data'], x_lengths=batch_dict['x_length'])
 
             # step 3. compute the loss
-            loss = self.loss_func(y_pred, batch_dict['y_target'])
+            loss = self.loss_func(y_pred.cpu(), batch_dict['y_target'].cpu())
             loss_t = loss.item()
             running_loss += (loss_t - running_loss) / (batch_index + 1)
 
@@ -82,7 +82,7 @@ class Learner(object):
                 self.optimizer.step()
             # -----------------------------------------
             # compute the accuracy
-            acc_t = compute_accuracy(y_pred, batch_dict['y_target'])
+            acc_t = compute_accuracy(y_pred.cpu(), batch_dict['y_target'].cpu())
             running_acc += (acc_t - running_acc) / (batch_index + 1)
 
             # update bar
@@ -221,7 +221,7 @@ class Learner(object):
             running_loss += (loss_t - running_loss) / (batch_index + 1)
 
             # compute the accuracy
-            acc_t, y_real_, y_pred_ = compute_accuracy(y_pred, batch_dict['y_target'], return_labels_data=True)
+            acc_t, y_real_, y_pred_ = compute_accuracy(y_pred.cpu(), batch_dict['y_target'].cpu(), return_labels_data=True)
             y_reals.extend(y_real_.tolist())
             y_preds.extend(y_pred_.tolist())
             running_acc += (acc_t - running_acc) / (batch_index + 1)
@@ -238,6 +238,8 @@ class Learner(object):
 
     def predict_category(self, surname):
         self.classifier.eval()
+        if self.args.cuda:
+            self.classifier.to('cpu')
         vectorized_surname, vec_length = self.vectorizer.vectorize(surname)
         vectorized_surname = torch.tensor(vectorized_surname).unsqueeze(dim=0)
         vec_length = torch.tensor([vec_length], dtype=torch.int64)
