@@ -295,6 +295,13 @@ class Learner(object):
         results = self.get_all_sentences(batch_dict, index)
         return results
 
+    def generate_text(self, text):
+        text_vectorized=self.vectorizer.vectorize(text, '')
+        generated_text=self.get_sampled_sentence({'x_source': torch.tensor(text_vectorized.get('source_vector')).unsqueeze(0),
+                              'x_source_length': torch.tensor(text_vectorized.get('source_length')).unsqueeze(0),
+                              'x_target': torch.tensor(text_vectorized.get('target_x_vector')).unsqueeze(0)}, 0)
+        return generated_text
+
     @classmethod
     def learner_from_args(cls, args):
         if args.expand_filepaths_to_save_dir:
